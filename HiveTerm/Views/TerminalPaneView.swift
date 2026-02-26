@@ -105,6 +105,9 @@ class TerminalHostView: NSView {
         guard infos[session.id] == nil else { return }
 
         let tv = LocalProcessTerminalView(frame: bounds)
+        if MetalTerminalRenderer.isAvailable {
+            tv.renderer = MetalTerminalRenderer()
+        }
         tv.font = NSFont.monospacedSystemFont(ofSize: currentFontSize, weight: .regular)
         tv.nativeBackgroundColor = theme.background.nsColor
         tv.nativeForegroundColor = theme.foreground.nsColor
@@ -216,9 +219,22 @@ class TerminalHostView: NSView {
 
     // MARK: - Layout
 
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        // SwiftUI sets our frame directly on resize; layout() won't re-fire
+        // unless needsLayout is explicitly set, so relayout terminals here.
+        layoutTerminals()
+    }
+
     override func layout() {
         super.layout()
         layoutTerminals()
+        // Pending processes may have been deferred because bounds were zero
+        // when update() first ran.  Now that layout has assigned a real frame,
+        // try starting them.
+        if !pendingStarts.isEmpty {
+            startPendingProcesses(theme: currentTheme)
+        }
     }
 
     override func viewDidEndLiveResize() {
@@ -326,13 +342,24 @@ class TerminalOutputMonitor: NSObject, TerminalViewDelegate {
         self.session = session
     }
 
-    func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {}
+    func sizeChanged(source: TerminalView, newCols: Int, newRows: Int) {
+        // Forward to LocalProcessTerminalView so it can update the PTY window
+        // size via ioctl.  We replaced its terminalDelegate, so we must proxy.
+        if let lptv = source as? LocalProcessTerminalView {
+            lptv.sizeChanged(source: source, newCols: newCols, newRows: newRows)
+        }
+    }
     func setTerminalTitle(source: TerminalView, title: String) {}
     func scrolled(source: TerminalView, position: Double) {}
     func hostCurrentDirectoryUpdate(source: TerminalView, directory: String?) {}
     func requestOpenLink(source: TerminalView, link: String, params: [String : String]) {}
     func bell(source: TerminalView) {}
-    func clipboardCopy(source: TerminalView, content: Data) {}
+    func clipboardCopy(source: TerminalView, content: Data) {
+        // Forward to LocalProcessTerminalView so it can copy to NSPasteboard
+        if let lptv = source as? LocalProcessTerminalView {
+            lptv.clipboardCopy(source: source, content: content)
+        }
+    }
     func iTermContent(source: TerminalView, content: ArraySlice<UInt8>) {}
 
     func rangeChanged(source: TerminalView, startY: Int, endY: Int) {
