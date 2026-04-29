@@ -3,5 +3,10 @@
 DerivedData/
 build/
 .build/
+dist/
+release-build/
+.release.env
+*.dmg
+*.dmg.sha256
 xcuserdata/
 *.xcuserstate

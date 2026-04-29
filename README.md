@@ -80,9 +80,8 @@ The key architectural decision: a single `TerminalHostView` (NSView) owns all te
 ### Download (no Xcode required)
 
 ```bash
-curl -L https://github.com/trsdn/HiveTerm/releases/latest/download/HiveTerm.zip -o HiveTerm.zip
-unzip HiveTerm.zip -d /Applications/
-xattr -cr /Applications/HiveTerm.app
+curl -L https://github.com/trsdn/HiveTerm/releases/latest/download/HiveTerm-macos.dmg -o HiveTerm-macos.dmg
+open HiveTerm-macos.dmg
 open /Applications/HiveTerm.app
 ```
 
@@ -96,6 +95,18 @@ xcodebuild -scheme HiveTerm -configuration Release build
 cp -R build/Release/HiveTerm.app /Applications/
 xattr -cr /Applications/HiveTerm.app
 ```
+
+### Signed DMG release
+
+Create a local release config from `.release.env.example`, then run:
+
+```bash
+scripts/release_macos.sh
+```
+
+The GitHub release workflow builds a signed, notarized DMG on `v*` tags. Configure these repository secrets first:
+`MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PWD`, `APPLE_ID`, `APPLE_TEAM_ID`, and `APPLE_APP_PASSWORD`.
+HiveTerm's SwiftTerm dependency uses Metal shaders, so the workflow installs Apple's Metal toolchain before building.
 
 ## Roadmap
 
